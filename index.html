@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Seiton</title>
+    <style>
+      :root { color-scheme: light; --ink: #1d2733; --muted: #5b6776; --line: #d6dce3; --accent: #1f5f8b; --danger: #b42318; }
+      #gate { min-height: 100vh; display: grid; place-items: center; padding: 16px; box-sizing: border-box; background: #f4f6f8;
+        font: 15px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: var(--ink); }
+      #gate form { width: 100%; max-width: 360px; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 28px 24px; box-shadow: 0 6px 24px rgba(20, 30, 40, 0.06); }
+      #gate h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.02em; }
+      #gate p { margin: 0 0 18px; color: var(--muted); }
+      #gate label { display: block; font-weight: 600; margin-bottom: 6px; }
+      #gate input[type='password'] { width: 100%; box-sizing: border-box; font: inherit; font-size: 17px; letter-spacing: 0.08em; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+      #gate input[type='password']:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+      #gate .remember { display: flex; gap: 8px; align-items: center; margin: 12px 0 18px; color: var(--muted); font-size: 14px; }
+      #gate button { width: 100%; font: inherit; font-weight: 600; padding: 10px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+      #gate button:disabled { opacity: 0.6; cursor: progress; }
+      #gate .error { color: var(--danger); min-height: 1.4em; margin: 10px 0 0; font-size: 14px; }
+      #gate .version { color: var(--muted); font-size: 12px; margin-top: 16px; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <div id="gate">
+      <form>
+        <h1>Seiton</h1>
+        <p data-t="intro"></p>
+        <label for="code" data-t="label"></label>
+        <input id="code" type="password" autocomplete="current-password" autocapitalize="characters" spellcheck="false" required autofocus />
+        <label class="remember"><input id="remember" type="checkbox" /> <span data-t="remember"></span></label>
+        <button type="submit" data-t="open"></button>
+        <div class="error" role="alert"></div>
+        <div class="version">0.3.1</div>
+      </form>
+    </div>
+    <div id="root"></div>
+    <script>
+      (() => {
+        // The sealed build is only opened here, in the reader's browser; nothing is sent anywhere.
+        const META = {"v":1,"iterations":600000,"salt":"c2VpdG9uLXdlYi1nYXRlLXYx","iv":"qgHzMROV9fXMsczG"};
+        const STORE_KEY = 'seiton.gate.key.v' + META.v;
+        const TEXT = {
+          sv: { intro: 'Ange åtkomstkoden för att öppna programmet.', label: 'Åtkomstkod', remember: 'Kom ihåg på den här enheten', open: 'Öppna', opening: 'Öppnar…', wrong: 'Fel kod.', broken: 'Programmet kunde inte laddas. Försök igen.' },
+          en: { intro: 'Enter the access code to open the program.', label: 'Access code', remember: 'Remember on this device', open: 'Open', opening: 'Opening…', wrong: 'Wrong code.', broken: 'The program could not be loaded. Please try again.' },
+          de: { intro: 'Geben Sie den Zugangscode ein, um das Programm zu öffnen.', label: 'Zugangscode', remember: 'Auf diesem Gerät merken', open: 'Öffnen', opening: 'Wird geöffnet…', wrong: 'Falscher Code.', broken: 'Das Programm konnte nicht geladen werden. Bitte erneut versuchen.' },
+        };
+        let lang = 'sv';
+        try {
+          const stored = localStorage.getItem('lpma.lang') || '';
+          const nav = (navigator.language || '').slice(0, 2);
+          lang = TEXT[stored] ? stored : TEXT[nav] ? nav : 'sv';
+        } catch { /* storage blocked: the default will do */ }
+        const t = TEXT[lang];
+        document.documentElement.lang = lang;
+        document.querySelectorAll('[data-t]').forEach((el) => (el.textContent = t[el.dataset.t]));
+
+        const form = document.querySelector('#gate form');
+        const input = document.getElementById('code');
+        const remember = document.getElementById('remember');
+        const button = form.querySelector('button');
+        const error = form.querySelector('.error');
+        const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const normalise = (code) => code.replace(/[\s-]/g, '').toUpperCase();
+        let sealed = null;
+        const loadSealed = () => (sealed ??= fetch('./app.bin', { cache: 'no-cache' }).then((r) => {
+          if (!r.ok) throw new Error('fetch');
+          return r.arrayBuffer();
+        }));
+
+        async function keyFromCode(code) {
+          const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(code), 'PBKDF2', false, ['deriveKey']);
+          return crypto.subtle.deriveKey(
+            { name: 'PBKDF2', hash: 'SHA-256', salt: bytes(META.salt), iterations: META.iterations },
+            material, { name: 'AES-GCM', length: 256 }, true, ['decrypt'],
+          );
+        }
+
+        async function open(key) {
+          const data = await loadSealed();
+          // A wrong key fails here: AES-GCM checks the whole box before it opens it.
+          const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes(META.iv) }, key, data);
+          const app = JSON.parse(new TextDecoder().decode(plain));
+          const style = document.createElement('style');
+          style.textContent = app.css;
+          document.head.appendChild(style);
+          const url = URL.createObjectURL(new Blob([app.js], { type: 'text/javascript' }));
+          await import(url);
+          // Only now: if the app failed to start, the form is still there to try again.
+          document.getElementById('gate').remove();
+        }
+
+        const busy = (on) => { button.disabled = on; button.textContent = on ? t.opening : t.open; };
+
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          error.textContent = '';
+          busy(true);
+          let key;
+          try {
+            key = await keyFromCode(normalise(input.value));
+            await open(key);
+          } catch (err) {
+            busy(false);
+            error.textContent = err && err.name === 'OperationError' ? t.wrong : t.broken;
+            input.select();
+            return;
+          }
+          try {
+            if (remember.checked) localStorage.setItem(STORE_KEY, b64(await crypto.subtle.exportKey('raw', key)));
+          } catch { /* not remembered, which is only an inconvenience */ }
+        });
+
+        // A device told to remember keeps the key, not the code, and tries it first.
+        (async () => {
+          let saved = null;
+          try { saved = localStorage.getItem(STORE_KEY); } catch { /* ignore */ }
+          if (!saved) return;
+          busy(true);
+          try {
+            const key = await crypto.subtle.importKey('raw', bytes(saved), { name: 'AES-GCM' }, false, ['decrypt']);
+            await open(key);
+          } catch {
+            // The code has changed since: forget it and ask again.
+            try { localStorage.removeItem(STORE_KEY); } catch { /* ignore */ }
+            busy(false);
+          }
+        })();
+      })();
+    </script>
+  </body>
+</html>

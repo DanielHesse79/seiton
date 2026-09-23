@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="85 270 432 432" width="432" height="432" role="img" aria-label="Seiton">
+  <!--
+    The mark on its own, cropped square out of assets/seiton-logo.svg.
+    Used for the application icon, the browser tab and the badge in the toolbar.
+    Keep the two files in step: this one carries no wordmark and no background.
+  -->
+  <defs>
+    <linearGradient id="markFlowBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0475C8"/>
+      <stop offset="1" stop-color="#0A4F86"/>
+    </linearGradient>
+    <linearGradient id="markNodeBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B78D0"/>
+      <stop offset="1" stop-color="#064777"/>
+    </linearGradient>
+    <linearGradient id="markTeal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#39D7C7"/>
+      <stop offset="1" stop-color="#13AAB5"/>
+    </linearGradient>
+    <linearGradient id="markSteel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5F7791"/>
+      <stop offset="1" stop-color="#3E536B"/>
+    </linearGradient>
+  </defs>
+
+  <path d="M 177 348 H 371 C 414 348 438 373 438 411 V 455 C 438 474 426 486 407 486 H 231 C 190 486 169 509 169 548 V 570 C 169 607 194 626 233 626 H 407"
+        fill="none" stroke="url(#markFlowBlue)" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M 161 552 C 161 606 191 632 238 632 H 405"
+        fill="none" stroke="#16B7C0" stroke-opacity="0.55" stroke-width="46" stroke-linecap="round"/>
+
+  <rect x="122" y="290" width="116" height="118" rx="23" fill="url(#markNodeBlue)"/>
+  <rect x="254" y="438" width="102" height="102" rx="24" fill="url(#markTeal)"/>
+  <rect x="368" y="568" width="112" height="114" rx="22" fill="url(#markSteel)"/>
+
+  <path d="M 350 307 C 350 298 360 293 367 299 L 414 337 C 421 343 421 353 414 359 L 367 397 C 360 403 350 398 350 389 Z" fill="url(#markTeal)"/>
+  <path d="M 292 588 C 292 579 302 574 309 580 L 355 617 C 362 623 362 633 355 639 L 309 676 C 302 682 292 677 292 668 Z" fill="url(#markTeal)"/>
+</svg>
